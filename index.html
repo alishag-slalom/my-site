@@ -5,6 +5,80 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Alisha — Designer</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* ── Weather Widget ─────────────────────────────────── */
+    .weather-widget {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      z-index: 200;
+      background: rgba(250, 247, 244, 0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(176, 123, 90, 0.25);
+      border-radius: 1.25rem;
+      box-shadow: 0 8px 32px rgba(74, 55, 40, 0.12), 0 2px 8px rgba(74, 55, 40, 0.08);
+      padding: 1rem 1.25rem;
+      min-width: 170px;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+    }
+    .weather-widget.loaded {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .weather-widget-inner {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .weather-emoji {
+      font-size: 2.2rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .weather-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+    .weather-temp {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: #4A3728;
+      line-height: 1;
+    }
+    .weather-desc {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: #B07B5A;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .weather-loc {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.68rem;
+      color: #9A8070;
+      margin-top: 0.1rem;
+    }
+    .weather-error {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.72rem;
+      color: #9A8070;
+    }
+    @media (max-width: 480px) {
+      .weather-widget {
+        bottom: 1rem;
+        right: 1rem;
+        padding: 0.75rem 1rem;
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -149,6 +223,18 @@
     </div>
   </section>
 
+  <!-- Weather Widget -->
+  <div class="weather-widget" id="weatherWidget" aria-live="polite" aria-label="Current weather">
+    <div class="weather-widget-inner">
+      <div class="weather-emoji" id="weatherEmoji">🌤</div>
+      <div class="weather-info">
+        <span class="weather-temp" id="weatherTemp">—</span>
+        <span class="weather-desc" id="weatherDesc">Loading…</span>
+        <span class="weather-loc" id="weatherLoc"></span>
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer>
     <p>&copy; 2026 Alisha. All rights reserved.</p>
@@ -159,5 +245,116 @@
     </ul>
   </footer>
 
+  <script>
+    (function () {
+      const WMO = {
+        0:  { label: 'Clear Sky',       emoji: '☀️' },
+        1:  { label: 'Mostly Clear',     emoji: '🌤️' },
+        2:  { label: 'Partly Cloudy',    emoji: '⛅' },
+        3:  { label: 'Overcast',         emoji: '☁️' },
+        45: { label: 'Foggy',            emoji: '🌫️' },
+        48: { label: 'Icy Fog',          emoji: '🌫️' },
+        51: { label: 'Light Drizzle',    emoji: '🌦️' },
+        53: { label: 'Drizzle',          emoji: '🌦️' },
+        55: { label: 'Heavy Drizzle',    emoji: '🌦️' },
+        61: { label: 'Light Rain',       emoji: '🌧️' },
+        63: { label: 'Rain',             emoji: '🌧️' },
+        65: { label: 'Heavy Rain',       emoji: '🌧️' },
+        71: { label: 'Light Snow',       emoji: '🌨️' },
+        73: { label: 'Snow',             emoji: '❄️' },
+        75: { label: 'Heavy Snow',       emoji: '❄️' },
+        77: { label: 'Snow Grains',      emoji: '🌨️' },
+        80: { label: 'Rain Showers',     emoji: '🌦️' },
+        81: { label: 'Rain Showers',     emoji: '🌧️' },
+        82: { label: 'Violent Showers',  emoji: '⛈️' },
+        85: { label: 'Snow Showers',     emoji: '🌨️' },
+        86: { label: 'Heavy Snow Showers', emoji: '❄️' },
+        95: { label: 'Thunderstorm',     emoji: '⛈️' },
+        96: { label: 'Thunderstorm',     emoji: '⛈️' },
+        99: { label: 'Thunderstorm',     emoji: '⛈️' },
+      };
+
+      function wmoInfo(code) {
+        return WMO[code] || { label: 'Unknown', emoji: '🌡️' };
+      }
+
+      async function fetchWeather(lat, lon) {
+        const url = 'https://api.open-meteo.com/v1/forecast'
+          + '?latitude=' + lat
+          + '&longitude=' + lon
+          + '&current=temperature_2m,weathercode'
+          + '&temperature_unit=fahrenheit'
+          + '&timezone=auto';
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Weather fetch failed');
+        return res.json();
+      }
+
+      async function reverseGeocode(lat, lon) {
+        try {
+          const url = 'https://nominatim.openstreetmap.org/reverse'
+            + '?lat=' + lat + '&lon=' + lon
+            + '&format=json';
+          const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+          const data = await res.json();
+          const city = data.address.city
+            || data.address.town
+            || data.address.village
+            || data.address.county
+            || '';
+          const state = data.address.state_code || data.address.state || '';
+          return city && state ? city + ', ' + state : city || state;
+        } catch (_) {
+          return '';
+        }
+      }
+
+      function showWidget(temp, code, location) {
+        const { label, emoji } = wmoInfo(code);
+        document.getElementById('weatherEmoji').textContent = emoji;
+        document.getElementById('weatherTemp').textContent = Math.round(temp) + '°F';
+        document.getElementById('weatherDesc').textContent = label;
+        document.getElementById('weatherLoc').textContent = location;
+        document.getElementById('weatherWidget').classList.add('loaded');
+      }
+
+      function showError(denied) {
+        const widget = document.getElementById('weatherWidget');
+        const msg = denied
+          ? '📍 Enable location to see your weather'
+          : 'Weather unavailable';
+        widget.innerHTML = '<div class="weather-widget-inner"><span class="weather-error">' + msg + '</span></div>';
+        widget.classList.add('loaded');
+      }
+
+      function init() {
+        if (!('geolocation' in navigator)) { showError(false); return; }
+        navigator.geolocation.getCurrentPosition(
+          async function (pos) {
+            try {
+              const { latitude: lat, longitude: lon } = pos.coords;
+              const [weather, location] = await Promise.all([
+                fetchWeather(lat, lon),
+                reverseGeocode(lat, lon),
+              ]);
+              const c = weather.current;
+              showWidget(c.temperature_2m, c.weathercode, location);
+            } catch (_) {
+              showError(false);
+            }
+          },
+          function (err) { showError(err.code === 1); },
+          { timeout: 8000, maximumAge: 300000 }
+        );
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
 </body>
 </html>
