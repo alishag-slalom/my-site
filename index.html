@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Alisha — Designer</title>
   <link rel="stylesheet" href="css/style.css" />
-  <style>
-    /* ── Weather Widget ─────────────────────────────────── */
     .weather-widget {
       position: fixed;
       bottom: 2rem;
@@ -151,14 +149,6 @@
       color: #A08070;
       margin-left: 0.28rem;
     }
-    @media (max-width: 480px) {
-      .weather-widget {
-        bottom: 1rem;
-        right: 1rem;
-        padding: 0.75rem 1rem;
-      }
-    }
-  </style>
 </head>
 <body>
 
@@ -332,9 +322,9 @@
     </ul>
   </footer>
 
-  <script>
-    (function () {
-      const WMO = {
+  <script src="js/app.js"></script>
+</body>
+</html>
         0:  { label: 'Clear Sky',       emoji: '☀️' },
         1:  { label: 'Mostly Clear',     emoji: '🌤️' },
         2:  { label: 'Partly Cloudy',    emoji: '⛅' },
@@ -476,7 +466,4 @@
       } else {
         init();
       }
-    })();
-  </script>
-</body>
-</html>
+
