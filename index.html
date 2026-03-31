@@ -12,14 +12,14 @@
       bottom: 2rem;
       right: 2rem;
       z-index: 200;
-      background: rgba(250, 247, 244, 0.88);
+      background: rgba(250, 247, 242, 0.90);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
-      border: 1px solid rgba(176, 123, 90, 0.25);
+      border: 1px solid rgba(214, 59, 0, 0.22);
       border-radius: 1.25rem;
-      box-shadow: 0 8px 32px rgba(74, 55, 40, 0.12), 0 2px 8px rgba(74, 55, 40, 0.08);
+      box-shadow: 0 8px 32px rgba(15, 11, 8, 0.14), 0 2px 8px rgba(15, 11, 8, 0.08);
       padding: 1rem 1.25rem;
-      min-width: 170px;
+      min-width: 180px;
       transition: opacity 0.4s ease, transform 0.4s ease;
       opacity: 0;
       transform: translateY(10px);
@@ -49,27 +49,107 @@
       font-family: 'Cormorant Garamond', Georgia, serif;
       font-size: 1.6rem;
       font-weight: 600;
-      color: #4A3728;
+      color: #0F0B08;
       line-height: 1;
     }
     .weather-desc {
       font-family: 'DM Sans', sans-serif;
       font-size: 0.72rem;
       font-weight: 500;
-      color: #B07B5A;
+      color: #D63B00;
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
     .weather-loc {
       font-family: 'DM Sans', sans-serif;
       font-size: 0.68rem;
-      color: #9A8070;
+      color: #786050;
       margin-top: 0.1rem;
     }
     .weather-error {
       font-family: 'DM Sans', sans-serif;
       font-size: 0.72rem;
-      color: #9A8070;
+      color: #786050;
+    }
+    /* ── Forecast Toggle ── */
+    .weather-forecast-toggle {
+      display: none;
+      width: 100%;
+      margin-top: 0.65rem;
+      padding: 0.35rem 0 0;
+      border: none;
+      border-top: 1px solid rgba(214, 59, 0, 0.15);
+      background: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.64rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #D63B00;
+      text-align: center;
+      transition: color 0.2s;
+    }
+    .weather-forecast-toggle.visible { display: block; }
+    .weather-forecast-toggle:hover { color: #B83200; }
+    .toggle-chevron {
+      display: inline-block;
+      transition: transform 0.25s ease;
+    }
+    .weather-forecast-toggle[aria-expanded="true"] .toggle-chevron {
+      transform: rotate(180deg);
+    }
+    /* ── Forecast Panel ── */
+    .weather-forecast-panel {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.32s ease, opacity 0.25s ease;
+    }
+    .weather-forecast-panel.open {
+      max-height: 220px;
+      opacity: 1;
+    }
+    .weather-forecast-list {
+      padding-top: 0.55rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.28rem;
+    }
+    .forecast-day {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .forecast-day-name {
+      width: 2.6rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: #786050;
+      flex-shrink: 0;
+    }
+    .forecast-day-name.today { color: #D63B00; }
+    .forecast-day-emoji {
+      font-size: 0.95rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .forecast-day-temps {
+      margin-left: auto;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.7rem;
+      white-space: nowrap;
+    }
+    .forecast-day-temps .hi {
+      font-weight: 600;
+      color: #0F0B08;
+    }
+    .forecast-day-temps .lo {
+      color: #A08070;
+      margin-left: 0.28rem;
     }
     @media (max-width: 480px) {
       .weather-widget {
@@ -233,6 +313,13 @@
         <span class="weather-loc" id="weatherLoc"></span>
       </div>
     </div>
+    <button class="weather-forecast-toggle" id="forecastToggle"
+            aria-expanded="false" aria-controls="forecastPanel">
+      5-day &nbsp;<span class="toggle-chevron">▾</span>
+    </button>
+    <div class="weather-forecast-panel" id="forecastPanel" role="region" aria-label="5-day forecast">
+      <div class="weather-forecast-list" id="forecastList"></div>
+    </div>
   </div>
 
   <!-- Footer -->
@@ -283,6 +370,7 @@
           + '?latitude=' + lat
           + '&longitude=' + lon
           + '&current=temperature_2m,weathercode'
+          + '&daily=temperature_2m_max,temperature_2m_min,weathercode'
           + '&temperature_unit=fahrenheit'
           + '&timezone=auto';
 
@@ -310,13 +398,47 @@
         }
       }
 
-      function showWidget(temp, code, location) {
+      function showForecast(daily) {
+        const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const list = document.getElementById('forecastList');
+        const count = Math.min(5, daily.time.length);
+        let html = '';
+        for (let i = 0; i < count; i++) {
+          const parts = daily.time[i].split('-');
+          const d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+          const name = i === 0 ? 'Today' : DAY_NAMES[d.getDay()];
+          const todayClass = i === 0 ? ' today' : '';
+          const { emoji } = wmoInfo(daily.weathercode[i]);
+          const hi = Math.round(daily.temperature_2m_max[i]);
+          const lo = Math.round(daily.temperature_2m_min[i]);
+          html += '<div class="forecast-day">'
+            + '<span class="forecast-day-name' + todayClass + '">' + name + '</span>'
+            + '<span class="forecast-day-emoji">' + emoji + '</span>'
+            + '<span class="forecast-day-temps">'
+            + '<span class="hi">' + hi + '°</span>'
+            + '<span class="lo">' + lo + '°</span>'
+            + '</span></div>';
+        }
+        list.innerHTML = html;
+
+        const toggle = document.getElementById('forecastToggle');
+        const panel  = document.getElementById('forecastPanel');
+        toggle.classList.add('visible');
+        toggle.addEventListener('click', function () {
+          const expanded = this.getAttribute('aria-expanded') === 'true';
+          this.setAttribute('aria-expanded', String(!expanded));
+          panel.classList.toggle('open', !expanded);
+        });
+      }
+
+      function showWidget(temp, code, location, daily) {
         const { label, emoji } = wmoInfo(code);
         document.getElementById('weatherEmoji').textContent = emoji;
         document.getElementById('weatherTemp').textContent = Math.round(temp) + '°F';
         document.getElementById('weatherDesc').textContent = label;
         document.getElementById('weatherLoc').textContent = location;
         document.getElementById('weatherWidget').classList.add('loaded');
+        if (daily) showForecast(daily);
       }
 
       function showError(denied) {
@@ -339,7 +461,7 @@
                 reverseGeocode(lat, lon),
               ]);
               const c = weather.current;
-              showWidget(c.temperature_2m, c.weathercode, location);
+              showWidget(c.temperature_2m, c.weathercode, location, weather.daily);
             } catch (_) {
               showError(false);
             }

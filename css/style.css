@@ -1,13 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=DM+Sans:wght@300;400;500&display=swap');
 
 :root {
-  --bg: #FAFAF8;
-  --bg-alt: #F2EBE3;
-  --text: #1A1A1A;
-  --text-muted: #8A8079;
-  --accent: #B07B5A;
-  --accent-light: #DEC4AD;
-  --border: #E4DAD2;
+  --bg: #FAF7F2;
+  --bg-alt: #EDE3D4;
+  --text: #0F0B08;
+  --text-muted: #786050;
+  --accent: #D63B00;
+  --accent-light: #EFA87A;
+  --border: #D2C2AE;
 }
 
 *, *::before, *::after {
@@ -70,7 +70,7 @@ nav {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 3rem;
-  background: rgba(250, 250, 248, 0.94);
+  background: rgba(250, 247, 242, 0.95);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
@@ -188,8 +188,8 @@ nav {
 }
 
 .btn-accent:hover {
-  background: #976649;
-  border-color: #976649;
+  background: #B83200;
+  border-color: #B83200;
   color: #fff;
 }
 
